@@ -1,0 +1,7 @@
+langchain
+langchain-groq
+pillow
+python-dotenv
+streamlit
+langgraph
+cloudinary
