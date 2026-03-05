@@ -41,3 +41,12 @@ if uploaded_file:
 
         st.subheader("Detected Inventory")
         st.json(result["inventory"])
+        st.subheader("⚠ At Risk Foods")
+
+        risk_items = result.get("risk_items", [])
+
+        if risk_items:
+            for item in risk_items:
+                st.warning(f"{item['item']} — {item['reason']}")
+        else:
+            st.success("No high-risk food detected.")

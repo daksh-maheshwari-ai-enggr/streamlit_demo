@@ -1,7 +1,7 @@
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 import os
-from typing import TypedDict, Optional, Dict
+from typing import TypedDict, Optional, Dict,List
 from dotenv import load_dotenv
 import json
 import re
@@ -13,6 +13,7 @@ class ChefState(TypedDict):
     budget: int
     nutrition_goal: str
     inventory: Optional[Dict]
+    risk_items: Optional[List]
 
 
 llm = ChatGroq(
@@ -51,6 +52,49 @@ def vision_node(state):
 
     return {"inventory": inventory} 
 
+from langchain_groq import ChatGroq
+from langchain_core.messages import HumanMessage
+import json
+
+
+
+def detect_risk(inventory):
+
+    prompt = f"""
+You are a food waste expert.
+
+Given the fridge inventory below, identify foods that are likely to spoil soon.
+
+Return JSON format:
+
+{{
+ "at_risk":[
+   {{"item":"name","reason":"why it spoils fast"}}
+ ]
+}}
+
+Inventory:
+{inventory}
+"""
+
+    message = HumanMessage(content=prompt)
+    response = llm.invoke([message])
+
+    content = response.content
+
+    json_match = re.search(r"\{.*\}", content, re.DOTALL)
+
+    if json_match:
+        data = json.loads(json_match.group())
+        risk_items = data.get("at_risk", [])
+    else:
+        risk_items = []
+
+    return {
+        "risk_items": risk_items
+    }
+
+
 # main.py
 
 from langgraph.graph import StateGraph, END
@@ -59,11 +103,14 @@ builder = StateGraph(ChefState)
 
 # Add Node
 builder.add_node("vision", vision_node)
+builder.add_node("risk",detect_risk)
 
 # Entry point
 builder.set_entry_point("vision")
 
 # End after vision for now
-builder.add_edge("vision", END)
+builder.add_edge("vision","risk")
+builder.add_edge("risk",END)
+
 
 graph = builder.compile()
